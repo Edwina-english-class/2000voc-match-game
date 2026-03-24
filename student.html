@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>單字遊戲 — WordQuest</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0f0e17;
+  --surface: #1a1830;
+  --surface2: #221f3a;
+  --border: #2e2a4d;
+  --accent: #7c6aff;
+  --accent2: #ff6b9d;
+  --gold: #f7c948;
+  --green: #4ecb71;
+  --red: #ff6b6b;
+  --text: #eeeaf6;
+  --muted: #8880aa;
+  --radius: 16px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Noto Sans TC',sans-serif;min-height:100vh;overflow-x:hidden;}
+
+/* ── Stars background ── */
+body::before{
+  content:'';position:fixed;inset:0;
+  background:radial-gradient(ellipse at 20% 20%,rgba(124,106,255,0.12) 0%,transparent 60%),
+             radial-gradient(ellipse at 80% 80%,rgba(255,107,157,0.1) 0%,transparent 60%);
+  pointer-events:none;z-index:0;
+}
+
+/* ── Screens ── */
+.screen{display:none;position:relative;z-index:1;}
+.screen.active{display:flex;flex-direction:column;align-items:center;min-height:100vh;}
+
+/* ══════════════════════════════════════════
+   LOBBY SCREEN
+══════════════════════════════════════════ */
+#lobbyScreen.active{justify-content:center;padding:40px 20px;}
+.lobby-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:40px 48px;
+  max-width:480px;
+  width:100%;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.4);
+}
+.logo-big{
+  font-family:'Nunito',sans-serif;
+  font-size:2.6rem;font-weight:900;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:6px;letter-spacing:-1px;
+}
+.logo-sub{color:var(--muted);font-size:0.88rem;margin-bottom:32px;}
+.section-label{
+  font-size:0.78rem;color:var(--muted);
+  letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:12px;font-weight:700;
+}
+.mode-btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-bottom:28px;}
+.mode-btn{
+  flex:1;min-width:120px;
+  padding:16px 10px;
+  border-radius:14px;
+  border:2px solid var(--border);
+  background:var(--surface2);
+  color:var(--text);
+  cursor:pointer;
+  font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;
+  transition:all 0.2s;
+  position:relative;
+}
+.mode-btn .icon{font-size:1.6rem;display:block;margin-bottom:4px;}
+.mode-btn:hover,.mode-btn.selected{border-color:var(--accent);background:rgba(124,106,255,0.12);color:var(--accent);}
+.mode-btn.selected::after{
+  content:'✓';
+  position:absolute;top:6px;right:8px;
+  font-size:0.75rem;color:var(--green);font-weight:900;
+}
+
+/* Nickname inputs */
+.nick-inputs{display:none;flex-direction:column;gap:10px;margin-bottom:24px;}
+.nick-row{display:flex;align-items:center;gap:10px;}
+.nick-label{
+  width:30px;height:30px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Nunito',sans-serif;font-weight:900;font-size:0.85rem;
+  flex-shrink:0;
+}
+.nick-label.p1{background:linear-gradient(135deg,#7c6aff,#a855f7);}
+.nick-label.p2{background:linear-gradient(135deg,#ff6b9d,#f97316);}
+.nick-label.p3{background:linear-gradient(135deg,#4ecb71,#14b8a6);}
+.nick-input{
+  flex:1;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);
+  font-family:'Noto Sans TC',sans-serif;font-size:0.9rem;
+  padding:10px 14px;outline:none;transition:border 0.2s;
+}
+.nick-input:focus{border-color:var(--accent);}
+
+.start-btn{
+  width:100%;padding:15px;
+  border-radius:14px;border:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;font-family:'Nunito',sans-serif;font-weight:900;
+  font-size:1.1rem;cursor:pointer;
+  box-shadow:0 6px 20px rgba(124,106,255,0.35);
+  transition:all 0.2s;
+}
+.start-btn:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(124,106,255,0.45);}
+
+/* ══════════════════════════════════════════
+   GAME SCREEN – 1 player
+══════════════════════════════════════════ */
+#gameScreen.active{padding:0;}
+
+.solo-wrap{
+  width:100%;max-width:580px;
+  margin:0 auto;padding:36px 20px;
+  display:flex;flex-direction:column;align-items:center;
+}
+
+/* progress bar */
+.progress-bar-wrap{width:100%;margin-bottom:24px;}
+.progress-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+.progress-title{font-family:'Nunito',sans-serif;font-weight:800;font-size:0.9rem;color:var(--accent);}
+.progress-count{font-family:'Nunito',sans-serif;font-weight:700;font-size:0.88rem;color:var(--muted);}
+.progress-track{
+  width:100%;height:8px;
+  background:var(--surface2);border-radius:999px;overflow:hidden;
+}
+.progress-fill{
+  height:100%;border-radius:999px;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  transition:width 0.5s ease;
+}
+
+/* question card */
+.q-card{
+  width:100%;
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:22px;
+  padding:36px 32px;
+  text-align:center;
+  box-shadow:0 12px 40px rgba(0,0,0,0.3);
+  margin-bottom:24px;
+}
+.q-word{
+  font-family:'Nunito',sans-serif;
+  font-weight:900;font-size:2.8rem;
+  background:linear-gradient(135deg,#fff,var(--accent));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:8px;letter-spacing:-1px;
+}
+.q-hint{color:var(--muted);font-size:0.82rem;}
+
+/* feedback */
+.feedback{
+  font-family:'Nunito',sans-serif;font-weight:900;
+  font-size:1.3rem;height:36px;margin-bottom:10px;
+  transition:all 0.3s;
+}
+.feedback.great{color:var(--green);}
+.feedback.wrong{color:var(--red);}
+
+/* options */
+.options-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;width:100%;
+}
+.opt-btn{
+  padding:16px 12px;
+  border-radius:14px;
+  border:2px solid var(--border);
+  background:var(--surface2);
+  color:var(--text);
+  font-family:'Noto Sans TC',sans-serif;font-size:1rem;font-weight:500;
+  cursor:pointer;transition:all 0.18s;
+  position:relative;overflow:hidden;
+}
+.opt-btn:hover:not(:disabled){border-color:var(--accent);background:rgba(124,106,255,0.12);}
+.opt-btn.correct{border-color:var(--green)!important;background:rgba(78,203,113,0.15)!important;color:var(--green);}
+.opt-btn.wrong-ans{border-color:var(--red)!important;background:rgba(255,107,107,0.12)!important;color:var(--red);}
+.opt-btn:disabled{cursor:default;opacity:0.7;}
+
+/* ══════════════════════════════════════════
+   PK SCREEN
+══════════════════════════════════════════ */
+#pkScreen.active{flex-direction:column;padding:0;}
+
+.pk-header{
+  width:100%;padding:14px 20px;
+  background:var(--surface);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:10;
+}
+.pk-header .logo-s{
+  font-family:'Nunito',sans-serif;font-weight:900;font-size:1.1rem;
+  background:linear-gradient(90deg,var(--accent),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.pk-players-wrap{
+  display:flex;width:100%;flex:1;
+  overflow:hidden;
+}
+.pk-player-col{
+  flex:1;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  min-height:calc(100vh - 52px);
+}
+.pk-player-col:last-child{border-right:none;}
+
+.pk-player-header{
+  padding:14px 16px 10px;
+  border-bottom:1px solid var(--border);
+  text-align:center;
+}
+.pk-name{
+  font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;
+  margin-bottom:4px;
+}
+.pk-progress-bar{
+  height:5px;background:var(--surface2);border-radius:999px;overflow:hidden;margin-top:6px;
+}
+.pk-progress-fill{height:100%;border-radius:999px;transition:width 0.4s ease;}
+
+.pk-content{
+  padding:16px 12px;
+  display:flex;flex-direction:column;align-items:center;
+  flex:1;
+}
+.pk-q-word{
+  font-family:'Nunito',sans-serif;font-weight:900;
+  font-size:2rem;
+  background:linear-gradient(135deg,#fff,var(--accent));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  text-align:center;margin-bottom:8px;
+}
+.pk-feedback{
+  font-family:'Nunito',sans-serif;font-weight:800;
+  font-size:1rem;height:28px;margin-bottom:8px;text-align:center;
+}
+.pk-opts{
+  display:grid;grid-template-columns:1fr 1fr;
+  gap:8px;width:100%;
+}
+.pk-opt-btn{
+  padding:12px 8px;
+  border-radius:12px;
+  border:2px solid var(--border);
+  background:var(--surface2);
+  color:var(--text);
+  font-family:'Noto Sans TC',sans-serif;font-size:0.85rem;font-weight:500;
+  cursor:pointer;transition:all 0.15s;
+}
+.pk-opt-btn:hover:not(:disabled){border-color:var(--accent);background:rgba(124,106,255,0.12);}
+.pk-opt-btn.correct{border-color:var(--green)!important;background:rgba(78,203,113,0.15)!important;color:var(--green);}
+.pk-opt-btn.wrong-ans{border-color:var(--red)!important;background:rgba(255,107,107,0.12)!important;color:var(--red);}
+.pk-opt-btn:disabled{cursor:default;opacity:0.65;}
+
+.pk-done-overlay{
+  display:none;
+  flex-direction:column;align-items:center;justify-content:center;
+  flex:1;padding:20px;text-align:center;
+}
+.pk-done-overlay.show{display:flex;}
+.pk-done-icon{font-size:2.4rem;margin-bottom:6px;}
+.pk-done-text{font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;color:var(--gold);}
+.pk-done-rank{font-size:0.82rem;color:var(--muted);margin-top:4px;}
+
+/* PK header colors */
+.color-p1{color:#a78bfa;} .fill-p1{background:linear-gradient(90deg,#7c6aff,#a855f7);}
+.color-p2{color:#f9a8d4;} .fill-p2{background:linear-gradient(90deg,#ff6b9d,#f97316);}
+.color-p3{color:#6ee7b7;} .fill-p3{background:linear-gradient(90deg,#4ecb71,#14b8a6);}
+
+/* ══════════════════════════════════════════
+   RESULT SCREEN
+══════════════════════════════════════════ */
+#resultScreen.active{justify-content:flex-start;padding:40px 20px;align-items:center;}
+
+.result-card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:24px;
+  padding:40px;
+  max-width:680px;
+  width:100%;
+  text-align:center;
+  box-shadow:0 20px 60px rgba(0,0,0,0.4);
+}
+.trophy{font-size:4rem;margin-bottom:12px;animation:trophyBounce 0.8s ease;}
+@keyframes trophyBounce{0%{transform:scale(0.3);opacity:0}70%{transform:scale(1.15)}100%{transform:scale(1);opacity:1}}
+.result-title{
+  font-family:'Nunito',sans-serif;font-weight:900;font-size:2rem;
+  background:linear-gradient(135deg,var(--gold),var(--accent2));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:6px;
+}
+.result-sub{color:var(--muted);font-size:0.9rem;margin-bottom:28px;}
+.ranking-list{display:flex;flex-direction:column;gap:8px;margin-bottom:28px;}
+.rank-item{
+  display:flex;align-items:center;gap:14px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:12px;padding:12px 18px;text-align:left;
+}
+.rank-num{
+  font-family:'Nunito',sans-serif;font-weight:900;font-size:1.2rem;
+  width:32px;text-align:center;
+}
+.rank-crown{font-size:1.4rem;}
+.rank-name{font-family:'Nunito',sans-serif;font-weight:800;font-size:1rem;}
+.rank-time{font-size:0.8rem;color:var(--muted);}
+
+.word-list-title{
+  font-family:'Nunito',sans-serif;font-weight:900;
+  font-size:1rem;color:var(--accent2);margin-bottom:14px;
+  text-align:left;
+}
+.word-list-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+  gap:8px;
+}
+.word-list-item{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;padding:10px 14px;text-align:left;
+}
+.wl-en{font-family:'Nunito',sans-serif;font-weight:700;font-size:0.95rem;}
+.wl-zh{font-size:0.8rem;color:var(--muted);margin-top:2px;}
+
+.play-again-btn{
+  margin-top:28px;padding:13px 36px;
+  border-radius:14px;border:none;
+  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  color:#fff;font-family:'Nunito',sans-serif;font-weight:900;font-size:1rem;
+  cursor:pointer;transition:all 0.2s;
+}
+.play-again-btn:hover{transform:translateY(-2px);}
+
+/* ── No data banner ── */
+#noData{
+  display:none;position:fixed;inset:0;z-index:999;
+  background:var(--bg);
+  align-items:center;justify-content:center;
+  flex-direction:column;gap:12px;
+}
+#noData.show{display:flex;}
+#noData .msg{font-family:'Nunito',sans-serif;font-weight:800;font-size:1.1rem;color:var(--muted);text-align:center;max-width:320px;}
+
+/* ── Petal canvas ── */
+#petalCanvas{position:fixed;inset:0;pointer-events:none;z-index:500;}
+
+/* ── Error screen ── */
+.error-icon{font-size:3rem;margin-bottom:16px;}
+</style>
+</head>
+<body>
+
+<canvas id="petalCanvas"></canvas>
+
+<!-- NO DATA -->
+<div id="noData">
+  <div class="error-icon">🔗</div>
+  <div class="msg">找不到單字資料。<br>請使用教師提供的連結開啟此頁面。</div>
+</div>
+
+<!-- LOBBY -->
+<div class="screen" id="lobbyScreen">
+  <div class="lobby-card">
+    <div class="logo-big">✦ WordQuest</div>
+    <div class="logo-sub">English Vocabulary Game</div>
+
+    <div class="section-label">選擇遊戲模式</div>
+    <div class="mode-btns">
+      <button class="mode-btn" onclick="selectMode(1)">
+        <span class="icon">🧑</span>1人
+      </button>
+      <button class="mode-btn" onclick="selectMode(2)">
+        <span class="icon">⚔️</span>2人PK
+      </button>
+      <button class="mode-btn" onclick="selectMode(3)">
+        <span class="icon">🏆</span>3人PK
+      </button>
+    </div>
+
+    <div id="nickInputs" class="nick-inputs">
+      <div class="section-label">輸入暱稱</div>
+      <div class="nick-row">
+        <div class="nick-label p1">P1</div>
+        <input class="nick-input" id="nick1" placeholder="玩家 1 暱稱" maxlength="12">
+      </div>
+      <div class="nick-row" id="nick2row">
+        <div class="nick-label p2">P2</div>
+        <input class="nick-input" id="nick2" placeholder="玩家 2 暱稱" maxlength="12">
+      </div>
+      <div class="nick-row" id="nick3row" style="display:none;">
+        <div class="nick-label p3">P3</div>
+        <input class="nick-input" id="nick3" placeholder="玩家 3 暱稱" maxlength="12">
+      </div>
+    </div>
+
+    <button class="start-btn" onclick="startGame()">開始遊戲 🚀</button>
+  </div>
+</div>
+
+<!-- SOLO GAME -->
+<div class="screen" id="gameScreen">
+  <div class="solo-wrap">
+    <div class="progress-bar-wrap">
+      <div class="progress-top">
+        <span class="progress-title">✦ WordQuest</span>
+        <span class="progress-count" id="soloCount">0 / 20</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="soloProgressFill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="q-card">
+      <div class="q-word" id="soloWord">—</div>
+      <div class="q-hint">選出正確的中文意思</div>
+    </div>
+
+    <div class="feedback" id="soloFeedback"></div>
+
+    <div class="options-grid" id="soloOpts"></div>
+  </div>
+</div>
+
+<!-- PK GAME -->
+<div class="screen" id="pkScreen">
+  <div class="pk-header">
+    <span class="logo-s">✦ WordQuest PK</span>
+    <span id="pkLiveStatus" style="font-size:0.8rem;color:var(--muted);font-family:'Nunito',sans-serif;font-weight:700;"></span>
+  </div>
+  <div class="pk-players-wrap" id="pkPlayersWrap"></div>
+</div>
+
+<!-- RESULT -->
+<div class="screen" id="resultScreen">
+  <div class="result-card">
+    <div class="trophy">🏆</div>
+    <div class="result-title" id="resultTitle">恭喜完成！</div>
+    <div class="result-sub" id="resultSub">你答對了全部 20 個單字！</div>
+    <div class="ranking-list" id="rankingList" style="display:none;"></div>
+    <div class="word-list-title">📚 本次單字清單</div>
+    <div class="word-list-grid" id="wordListGrid"></div>
+    <button class="play-again-btn" onclick="backToLobby()">再玩一次 🔄</button>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// DATA LOADING
+// ══════════════════════════════════════════════════════
+let WORDS = [];
+
+function loadWords() {
+  const params = new URLSearchParams(window.location.search);
+  const data = params.get('data');
+  if (!data) {
+    document.getElementById('noData').classList.add('show');
+    return false;
+  }
+  try {
+    WORDS = JSON.parse(decodeURIComponent(escape(atob(data))));
+    if (!Array.isArray(WORDS) || WORDS.length < 4) throw new Error();
+    return true;
+  } catch {
+    document.getElementById('noData').classList.add('show');
+    return false;
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ══════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+// ══════════════════════════════════════════════════════
+// LOBBY
+// ══════════════════════════════════════════════════════
+let gameMode = 1;
+
+function selectMode(m) {
+  gameMode = m;
+  document.querySelectorAll('.mode-btn').forEach((b,i) => b.classList.toggle('selected', i===m-1));
+  const ni = document.getElementById('nickInputs');
+  ni.style.display = m > 1 ? 'flex' : 'none';
+  document.getElementById('nick2row').style.display = m >= 2 ? 'flex' : 'none';
+  document.getElementById('nick3row').style.display = m >= 3 ? 'flex' : 'none';
+}
+
+function startGame() {
+  if (gameMode === 1) {
+    startSolo();
+  } else {
+    const names = [];
+    for (let i=1;i<=gameMode;i++) {
+      const v = document.getElementById(`nick${i}`).value.trim();
+      names.push(v || `玩家${i}`);
+    }
+    startPK(names);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// HELPERS
+// ══════════════════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i=a.length-1;i>0;i--) {
+    const j=Math.floor(Math.random()*(i+1));
+    [a[i],a[j]]=[a[j],a[i]];
+  }
+  return a;
+}
+
+function getOptions(correctIndex, allWords) {
+  // pick 3 wrong + 1 correct
+  const others = allWords.filter((_,i)=>i!==correctIndex);
+  const wrong = shuffle(others).slice(0,3);
+  return shuffle([...wrong, allWords[correctIndex]]);
+}
+
+// ══════════════════════════════════════════════════════
+// SOLO GAME
+// ══════════════════════════════════════════════════════
+let soloQueue = [];
+let soloIdx = 0;
+
+function startSolo() {
+  showScreen('gameScreen');
+  soloQueue = shuffle(WORDS.map((_,i)=>i));
+  soloIdx = 0;
+  renderSoloQ();
+}
+
+function renderSoloQ() {
+  const total = soloQueue.length;
+  const done = soloIdx;
+  document.getElementById('soloCount').textContent = `${done} / ${total}`;
+  document.getElementById('soloProgressFill').style.width = `${(done/total)*100}%`;
+
+  if (soloIdx >= total) {
+    showResult([]);
+    return;
+  }
+
+  const wIdx = soloQueue[soloIdx];
+  const word = WORDS[wIdx];
+  document.getElementById('soloWord').textContent = word.en;
+  document.getElementById('soloFeedback').textContent = '';
+  document.getElementById('soloFeedback').className = 'feedback';
+
+  const opts = getOptions(wIdx, WORDS);
+  const grid = document.getElementById('soloOpts');
+  grid.innerHTML = '';
+  opts.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.className = 'opt-btn';
+    btn.textContent = opt.zh;
+    btn.onclick = () => handleSoloAnswer(btn, opt.zh === word.zh, grid);
+    grid.appendChild(btn);
+  });
+}
+
+function handleSoloAnswer(btn, correct, grid) {
+  const fb = document.getElementById('soloFeedback');
+  if (correct) {
+    btn.classList.add('correct');
+    fb.textContent = '🌟 Great!';
+    fb.className = 'feedback great';
+    grid.querySelectorAll('.opt-btn').forEach(b=>b.disabled=true);
+    setTimeout(()=>{
+      soloIdx++;
+      renderSoloQ();
+    }, 700);
+  } else {
+    btn.classList.add('wrong-ans');
+    fb.textContent = '💪 Try again.';
+    fb.className = 'feedback wrong';
+    setTimeout(()=>{
+      btn.classList.remove('wrong-ans');
+      btn.disabled = false;
+      fb.textContent = '';
+      fb.className = 'feedback';
+    }, 700);
+    btn.disabled = true;
+    setTimeout(()=>btn.disabled=false, 700);
+  }
+}
+
+// ══════════════════════════════════════════════════════
+// PK GAME
+// ══════════════════════════════════════════════════════
+let pkPlayers = []; // {name, queue, idx, done, startTime, finishTime, col}
+let pkFinishOrder = [];
+let pkGameOver = false;
+
+const playerColors = ['p1','p2','p3'];
+
+function startPK(names) {
+  showScreen('pkScreen');
+  pkFinishOrder = [];
+  pkGameOver = false;
+
+  pkPlayers = names.map((name, pi) => {
+    const queue = shuffle(WORDS.map((_,i)=>i));
+    return { name, queue, idx: 0, done: false, startTime: Date.now(), finishTime: null, pi };
+  });
+
+  const wrap = document.getElementById('pkPlayersWrap');
+  wrap.innerHTML = '';
+
+  pkPlayers.forEach((p, pi) => {
+    const col = document.createElement('div');
+    col.className = 'pk-player-col';
+    col.id = `pk-col-${pi}`;
+
+    col.innerHTML = `
+      <div class="pk-player-header">
+        <div class="pk-name color-${playerColors[pi]}">${escHtml(p.name)}</div>
+        <div style="font-size:0.75rem;color:var(--muted);">0 / 20</div>
+        <div class="pk-progress-bar"><div class="pk-progress-fill fill-${playerColors[pi]}" id="pk-pfill-${pi}" style="width:0%"></div></div>
+      </div>
+      <div class="pk-content" id="pk-content-${pi}"></div>
+      <div class="pk-done-overlay" id="pk-done-${pi}">
+        <div class="pk-done-icon">🎊</div>
+        <div class="pk-done-text">完成！</div>
+        <div class="pk-done-rank" id="pk-done-rank-${pi}"></div>
+      </div>
+    `;
+    wrap.appendChild(col);
+    p.col = col;
+  });
+
+  pkPlayers.forEach((_, pi) => renderPKQ(pi));
+  updatePKStatus();
+}
+
+function renderPKQ(pi) {
+  const p = pkPlayers[pi];
+  if (p.done) return;
+
+  const content = document.getElementById(`pk-content-${pi}`);
+  const header = document.getElementById(`pk-col-${pi}`).querySelector('.pk-player-header > div:nth-child(2)');
+
+  header.textContent = `${p.idx} / 20`;
+  document.getElementById(`pk-pfill-${pi}`).style.width = `${(p.idx/20)*100}%`;
+
+  if (p.idx >= 20) {
+    p.done = true;
+    p.finishTime = Date.now();
+    pkFinishOrder.push(pi);
+    content.style.display = 'none';
+    document.getElementById(`pk-done-${pi}`).classList.add('show');
+    document.getElementById(`pk-done-rank-${pi}`).textContent = `第 ${pkFinishOrder.length} 名完成`;
+    updatePKStatus();
+
+    if (!pkGameOver) {
+      pkGameOver = true;
+      setTimeout(() => showResult(pkFinishOrder), 1000);
+    }
+    return;
+  }
+
+  const wIdx = p.queue[p.idx];
+  const word = WORDS[wIdx];
+  const opts = getOptions(wIdx, WORDS);
+
+  content.innerHTML = `
+    <div class="pk-q-word">${escHtml(word.en)}</div>
+    <div style="font-size:0.75rem;color:var(--muted);margin-bottom:8px;">選出正確中文</div>
+    <div class="pk-feedback" id="pk-fb-${pi}"></div>
+    <div class="pk-opts" id="pk-opts-${pi}">
+      ${opts.map(opt=>`<button class="pk-opt-btn" onclick="handlePKAnswer(${pi},this,'${escQ(opt.zh)}','${escQ(word.zh)}')">${escHtml(opt.zh)}</button>`).join('')}
+    </div>
+  `;
+}
+
+function handlePKAnswer(pi, btn, chosen, correct) {
+  if (pkGameOver && pkPlayers[pi].done) return;
+  if (pkGameOver) return;
+
+  const fb = document.getElementById(`pk-fb-${pi}`);
+  const opts = document.getElementById(`pk-opts-${pi}`);
+
+  if (chosen === correct) {
+    btn.classList.add('correct');
+    fb.textContent = '🌟 Great!';
+    fb.style.color = 'var(--green)';
+    opts.querySelectorAll('.pk-opt-btn').forEach(b=>b.disabled=true);
+    pkPlayers[pi].idx++;
+    setTimeout(()=>renderPKQ(pi), 600);
+  } else {
+    btn.classList.add('wrong-ans');
+    fb.textContent = '💪 Try again.';
+    fb.style.color = 'var(--red)';
+    btn.disabled = true;
+    setTimeout(()=>{
+      btn.classList.remove('wrong-ans');
+      fb.textContent = '';
+    }, 600);
+    setTimeout(()=>btn.disabled=false, 600);
+  }
+}
+
+function updatePKStatus() {
+  const done = pkPlayers.filter(p=>p.done).length;
+  document.getElementById('pkLiveStatus').textContent = `${done}/${pkPlayers.length} 完成`;
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escQ(s){ return String(s).replace(/'/g,"\\'"); }
+
+// ══════════════════════════════════════════════════════
+// RESULT SCREEN
+// ══════════════════════════════════════════════════════
+function showResult(finishOrder) {
+  startPetals();
+  showScreen('resultScreen');
+
+  // Ranking (PK)
+  const rankList = document.getElementById('rankingList');
+  if (finishOrder.length > 0) {
+    rankList.style.display = 'flex';
+    const medals = ['🥇','🥈','🥉'];
+    rankList.innerHTML = finishOrder.map((pi,rank) => {
+      const p = pkPlayers[pi];
+      const secs = p.finishTime ? ((p.finishTime - p.startTime)/1000).toFixed(1) : '—';
+      return `
+        <div class="rank-item">
+          <div class="rank-crown">${medals[rank]||''}</div>
+          <div class="rank-num color-${playerColors[pi]}">${rank+1}</div>
+          <div style="flex:1;">
+            <div class="rank-name">${escHtml(p.name)}</div>
+            <div class="rank-time">⏱ ${secs} 秒完成</div>
+          </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('resultTitle').textContent = `🎊 ${escHtml(pkPlayers[finishOrder[0]].name)} 獲勝！`;
+    document.getElementById('resultSub').textContent = `完成 20 題最快的冠軍出爐了！`;
+  } else {
+    rankList.style.display = 'none';
+    document.getElementById('resultTitle').textContent = '🎉 完成！';
+    document.getElementById('resultSub').textContent = '你答對了全部 20 個單字！太厲害了！';
+  }
+
+  // Word list
+  const grid = document.getElementById('wordListGrid');
+  grid.innerHTML = WORDS.map(w=>`
+    <div class="word-list-item">
+      <div class="wl-en">${escHtml(w.en)}</div>
+      <div class="wl-zh">${escHtml(w.zh)}</div>
+    </div>`).join('');
+}
+
+function backToLobby() {
+  stopPetals();
+  showScreen('lobbyScreen');
+}
+
+// ══════════════════════════════════════════════════════
+// PETALS ANIMATION
+// ══════════════════════════════════════════════════════
+let petalRAF = null;
+const PETAL_COLORS = ['#ff6b9d','#f7c948','#7c6aff','#4ecb71','#ff9f7f','#a78bfa','#fbcfe8'];
+
+class Petal {
+  constructor(canvas) {
+    this.reset(canvas, true);
+  }
+  reset(canvas, init=false) {
+    this.x = Math.random() * canvas.width;
+    this.y = init ? Math.random()*-canvas.height : -20;
+    this.size = 6 + Math.random()*10;
+    this.speedY = 1.2 + Math.random()*2;
+    this.speedX = (Math.random()-0.5)*1.2;
+    this.rot = Math.random()*360;
+    this.rotSpeed = (Math.random()-0.5)*3;
+    this.color = PETAL_COLORS[Math.floor(Math.random()*PETAL_COLORS.length)];
+    this.opacity = 0.7+Math.random()*0.3;
+  }
+  update(canvas) {
+    this.y += this.speedY;
+    this.x += this.speedX + Math.sin(this.y*0.02)*0.5;
+    this.rot += this.rotSpeed;
+    if (this.y > canvas.height + 20) this.reset(canvas);
+  }
+  draw(ctx) {
+    ctx.save();
+    ctx.globalAlpha = this.opacity;
+    ctx.translate(this.x, this.y);
+    ctx.rotate(this.rot*Math.PI/180);
+    ctx.fillStyle = this.color;
+    ctx.beginPath();
+    ctx.ellipse(0,0,this.size,this.size*0.5,0,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+  }
+}
+
+let petals = [];
+function startPetals() {
+  const canvas = document.getElementById('petalCanvas');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  const ctx = canvas.getContext('2d');
+  petals = Array.from({length:80}, ()=>new Petal(canvas));
+
+  function loop() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    petals.forEach(p=>{p.update(canvas);p.draw(ctx);});
+    petalRAF = requestAnimationFrame(loop);
+  }
+  loop();
+}
+function stopPetals() {
+  if (petalRAF) cancelAnimationFrame(petalRAF);
+  const canvas = document.getElementById('petalCanvas');
+  canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+}
+window.addEventListener('resize',()=>{
+  const c=document.getElementById('petalCanvas');
+  c.width=window.innerWidth;c.height=window.innerHeight;
+});
+
+// ══════════════════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════════════════
+if (loadWords()) {
+  showScreen('lobbyScreen');
+  selectMode(1);
+}
+</script>
+</body>
+</html>
