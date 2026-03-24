@@ -471,7 +471,9 @@ function loadWords() {
     return false;
   }
   try {
-    WORDS = JSON.parse(decodeURIComponent(escape(atob(data))));
+    // Restore base64 characters that may have been URL-encoded or replaced
+    const fixed = data.replace(/ /g, '+');
+    WORDS = JSON.parse(decodeURIComponent(escape(atob(fixed))));
     if (!Array.isArray(WORDS) || WORDS.length < 4) throw new Error();
     return true;
   } catch {
